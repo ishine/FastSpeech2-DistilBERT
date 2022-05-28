@@ -49,9 +49,8 @@ def preprocess_english(text, preprocess_config):
     print("Phoneme Sequence: {}".format(phones))
     sequence = np.array(
         text_to_sequence(
-            phones, preprocess_config["preprocessing"]["text"]["text_cleaners"]
-        )
-    )
+            phones,
+            preprocess_config["preprocessing"]["text"]["text_cleaners"]))
 
     return np.array(sequence)
 
@@ -61,10 +60,8 @@ def preprocess_mandarin(text, preprocess_config):
 
     phones = []
     pinyins = [
-        p[0]
-        for p in pinyin(
-            text, style=Style.TONE3, strict=False, neutral_tone_with_five=True
-        )
+        p[0] for p in pinyin(
+            text, style=Style.TONE3, strict=False, neutral_tone_with_five=True)
     ]
     for p in pinyins:
         if p in lexicon:
@@ -77,13 +74,13 @@ def preprocess_mandarin(text, preprocess_config):
     print("Phoneme Sequence: {}".format(phones))
     sequence = np.array(
         text_to_sequence(
-            phones, preprocess_config["preprocessing"]["text"]["text_cleaners"]
-        )
-    )
+            phones,
+            preprocess_config["preprocessing"]["text"]["text_cleaners"]))
 
     return np.array(sequence)
 
 
+# TODO(danj): update this to generate/use dbert embeddings
 def synthesize(model, step, configs, vocoder, batchs, control_values):
     preprocess_config, model_config, train_config = configs
     pitch_control, energy_control, duration_control = control_values
@@ -92,12 +89,10 @@ def synthesize(model, step, configs, vocoder, batchs, control_values):
         batch = to_device(batch, device)
         with torch.no_grad():
             # Forward
-            output = model(
-                *(batch[2:]),
-                p_control=pitch_control,
-                e_control=energy_control,
-                d_control=duration_control
-            )
+            output = model(*(batch[2:]),
+                           p_control=pitch_control,
+                           e_control=energy_control,
+                           d_control=duration_control)
             synth_samples(
                 batch,
                 output,
@@ -123,7 +118,8 @@ if __name__ == "__main__":
         "--source",
         type=str,
         default=None,
-        help="path to a source file with format like train.txt and val.txt, for batch mode only",
+        help=
+        "path to a source file with format like train.txt and val.txt, for batch mode only",
     )
     parser.add_argument(
         "--text",
@@ -135,7 +131,8 @@ if __name__ == "__main__":
         "--speaker_id",
         type=int,
         default=0,
-        help="speaker ID for multi-speaker synthesis, for single-sentence mode only",
+        help=
+        "speaker ID for multi-speaker synthesis, for single-sentence mode only",
     )
     parser.add_argument(
         "-p",
@@ -144,29 +141,36 @@ if __name__ == "__main__":
         required=True,
         help="path to preprocess.yaml",
     )
-    parser.add_argument(
-        "-m", "--model_config", type=str, required=True, help="path to model.yaml"
-    )
-    parser.add_argument(
-        "-t", "--train_config", type=str, required=True, help="path to train.yaml"
-    )
+    parser.add_argument("-m",
+                        "--model_config",
+                        type=str,
+                        required=True,
+                        help="path to model.yaml")
+    parser.add_argument("-t",
+                        "--train_config",
+                        type=str,
+                        required=True,
+                        help="path to train.yaml")
     parser.add_argument(
         "--pitch_control",
         type=float,
         default=1.0,
-        help="control the pitch of the whole utterance, larger value for higher pitch",
+        help=
+        "control the pitch of the whole utterance, larger value for higher pitch",
     )
     parser.add_argument(
         "--energy_control",
         type=float,
         default=1.0,
-        help="control the energy of the whole utterance, larger value for larger volume",
+        help=
+        "control the energy of the whole utterance, larger value for larger volume",
     )
     parser.add_argument(
         "--duration_control",
         type=float,
         default=1.0,
-        help="control the speed of the whole utterance, larger value for slower speaking rate",
+        help=
+        "control the speed of the whole utterance, larger value for slower speaking rate",
     )
     args = parser.parse_args()
 
@@ -177,11 +181,12 @@ if __name__ == "__main__":
         assert args.source is None and args.text is not None
 
     # Read Config
-    preprocess_config = yaml.load(
-        open(args.preprocess_config, "r"), Loader=yaml.FullLoader
-    )
-    model_config = yaml.load(open(args.model_config, "r"), Loader=yaml.FullLoader)
-    train_config = yaml.load(open(args.train_config, "r"), Loader=yaml.FullLoader)
+    preprocess_config = yaml.load(open(args.preprocess_config, "r"),
+                                  Loader=yaml.FullLoader)
+    model_config = yaml.load(open(args.model_config, "r"),
+                             Loader=yaml.FullLoader)
+    train_config = yaml.load(open(args.train_config, "r"),
+                             Loader=yaml.FullLoader)
     configs = (preprocess_config, model_config, train_config)
 
     # Get model
@@ -203,12 +208,15 @@ if __name__ == "__main__":
         ids = raw_texts = [args.text[:100]]
         speakers = np.array([args.speaker_id])
         if preprocess_config["preprocessing"]["text"]["language"] == "en":
-            texts = np.array([preprocess_english(args.text, preprocess_config)])
+            texts = np.array(
+                [preprocess_english(args.text, preprocess_config)])
         elif preprocess_config["preprocessing"]["text"]["language"] == "zh":
-            texts = np.array([preprocess_mandarin(args.text, preprocess_config)])
+            texts = np.array(
+                [preprocess_mandarin(args.text, preprocess_config)])
         text_lens = np.array([len(texts[0])])
         batchs = [(ids, raw_texts, speakers, texts, text_lens, max(text_lens))]
 
     control_values = args.pitch_control, args.energy_control, args.duration_control
 
-    synthesize(model, args.restore_step, configs, vocoder, batchs, control_values)
+    synthesize(model, args.restore_step, configs, vocoder, batchs,
+               control_values)
