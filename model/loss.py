@@ -65,6 +65,7 @@ class FastSpeech2Loss(nn.Module):
             src_masks)
         log_duration_targets = log_duration_targets.masked_select(src_masks)
 
+        # TODO(danj): ERROR here because of concatenating dbert embeddings
         mel_predictions = mel_predictions.masked_select(
             mel_masks.unsqueeze(-1))
         postnet_mel_predictions = postnet_mel_predictions.masked_select(
