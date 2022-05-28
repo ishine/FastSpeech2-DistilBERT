@@ -20,11 +20,11 @@ class FastSpeech2(nn.Module):
         self.encoder = Encoder(model_config)
         self.variance_adaptor = VarianceAdaptor(preprocess_config,
                                                 model_config)
+        self.decoder = Decoder(model_config)
         self.dbert_linear = nn.Linear(
             model_config["transformer"]["dbert_hidden"],
             model_config["transformer"]["decoder_hidden"],
         )
-        self.decoder = Decoder(model_config)
         self.mel_linear = nn.Linear(
             model_config["transformer"]["decoder_hidden"],
             preprocess_config["preprocessing"]["mel"]["n_mel_channels"],
@@ -93,10 +93,10 @@ class FastSpeech2(nn.Module):
             d_control,
         )
 
-        # TODO(danj): combine dbert_output with variance adapter output
-        dbert_output = self.dbert_linear(dbert_targets)
         output, mel_masks = self.decoder(output, mel_masks)
-        output = self.mel_linear(output)
+        dbert_output = self.dbert_linear(dbert_targets)
+        combined_output = torch.cat((output, dbert_output), dim=1)
+        output = self.mel_linear(combined_output)
 
         postnet_output = self.postnet(output) + output
 
