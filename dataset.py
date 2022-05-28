@@ -59,6 +59,12 @@ class Dataset(Dataset):
             "{}-duration-{}.npy".format(speaker, basename),
         )
         duration = np.load(duration_path)
+        dbert_path = os.path.join(
+            self.preprocessed_path,
+            "dbert",
+            "{}-dbert-{}.npy".format(speaker, basename),
+        )
+        dbert = np.load(dbert_path)
 
         sample = {
             "id": basename,
@@ -69,6 +75,7 @@ class Dataset(Dataset):
             "pitch": pitch,
             "energy": energy,
             "duration": duration,
+            "dbert": dbert,
         }
 
         return sample
@@ -98,6 +105,7 @@ class Dataset(Dataset):
         pitches = [data[idx]["pitch"] for idx in idxs]
         energies = [data[idx]["energy"] for idx in idxs]
         durations = [data[idx]["duration"] for idx in idxs]
+        dberts = [data[idx]["dbert"] for idx in idxs]
 
         text_lens = np.array([text.shape[0] for text in texts])
         mel_lens = np.array([mel.shape[0] for mel in mels])
@@ -108,6 +116,7 @@ class Dataset(Dataset):
         pitches = pad_1D(pitches)
         energies = pad_1D(energies)
         durations = pad_1D(durations)
+        dberts = pad_2D(dberts)
 
         return (
             ids,
@@ -122,6 +131,7 @@ class Dataset(Dataset):
             pitches,
             energies,
             durations,
+            dberts,
         )
 
     def collate_fn(self, data):
