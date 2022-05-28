@@ -18,7 +18,12 @@ class FastSpeech2(nn.Module):
         self.model_config = model_config
 
         self.encoder = Encoder(model_config)
-        self.variance_adaptor = VarianceAdaptor(preprocess_config, model_config)
+        self.variance_adaptor = VarianceAdaptor(preprocess_config,
+                                                model_config)
+        self.dbert_linear = nn.Linear(
+            model_config["transformer"]["dbert_hidden"],
+            model_config["transformer"]["decoder_hidden"],
+        )
         self.decoder = Decoder(model_config)
         self.mel_linear = nn.Linear(
             model_config["transformer"]["decoder_hidden"],
@@ -29,10 +34,10 @@ class FastSpeech2(nn.Module):
         self.speaker_emb = None
         if model_config["multi_speaker"]:
             with open(
-                os.path.join(
-                    preprocess_config["path"]["preprocessed_path"], "speakers.json"
-                ),
-                "r",
+                    os.path.join(
+                        preprocess_config["path"]["preprocessed_path"],
+                        "speakers.json"),
+                    "r",
             ) as f:
                 n_speaker = len(json.load(f))
             self.speaker_emb = nn.Embedding(
@@ -58,18 +63,14 @@ class FastSpeech2(nn.Module):
         d_control=1.0,
     ):
         src_masks = get_mask_from_lengths(src_lens, max_src_len)
-        mel_masks = (
-            get_mask_from_lengths(mel_lens, max_mel_len)
-            if mel_lens is not None
-            else None
-        )
+        mel_masks = (get_mask_from_lengths(mel_lens, max_mel_len)
+                     if mel_lens is not None else None)
 
         output = self.encoder(texts, src_masks)
 
         if self.speaker_emb is not None:
             output = output + self.speaker_emb(speakers).unsqueeze(1).expand(
-                -1, max_src_len, -1
-            )
+                -1, max_src_len, -1)
 
         (
             output,
@@ -92,7 +93,8 @@ class FastSpeech2(nn.Module):
             d_control,
         )
 
-        # TODO(danj): update here to use DBERT
+        # TODO(danj): combine dbert_output with variance adapter output
+        dbert_output = self.dbert_linear(dbert_targets)
         output, mel_masks = self.decoder(output, mel_masks)
         output = self.mel_linear(output)
 
