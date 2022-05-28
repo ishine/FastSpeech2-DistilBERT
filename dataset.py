@@ -10,17 +10,21 @@ from utils.tools import pad_1D, pad_2D
 
 
 class Dataset(Dataset):
-    def __init__(
-        self, filename, preprocess_config, train_config, sort=False, drop_last=False
-    ):
+
+    def __init__(self,
+                 filename,
+                 preprocess_config,
+                 train_config,
+                 sort=False,
+                 drop_last=False):
         self.dataset_name = preprocess_config["dataset"]
         self.preprocessed_path = preprocess_config["path"]["preprocessed_path"]
-        self.cleaners = preprocess_config["preprocessing"]["text"]["text_cleaners"]
+        self.cleaners = preprocess_config["preprocessing"]["text"][
+            "text_cleaners"]
         self.batch_size = train_config["optimizer"]["batch_size"]
 
         self.basename, self.speaker, self.text, self.raw_text = self.process_meta(
-            filename
-        )
+            filename)
         with open(os.path.join(self.preprocessed_path, "speakers.json")) as f:
             self.speaker_map = json.load(f)
         self.sort = sort
@@ -81,9 +85,9 @@ class Dataset(Dataset):
         return sample
 
     def process_meta(self, filename):
-        with open(
-            os.path.join(self.preprocessed_path, filename), "r", encoding="utf-8"
-        ) as f:
+        with open(os.path.join(self.preprocessed_path, filename),
+                  "r",
+                  encoding="utf-8") as f:
             name = []
             speaker = []
             text = []
@@ -143,8 +147,8 @@ class Dataset(Dataset):
         else:
             idx_arr = np.arange(data_size)
 
-        tail = idx_arr[len(idx_arr) - (len(idx_arr) % self.batch_size) :]
-        idx_arr = idx_arr[: len(idx_arr) - (len(idx_arr) % self.batch_size)]
+        tail = idx_arr[len(idx_arr) - (len(idx_arr) % self.batch_size):]
+        idx_arr = idx_arr[:len(idx_arr) - (len(idx_arr) % self.batch_size)]
         idx_arr = idx_arr.reshape((-1, self.batch_size)).tolist()
         if not self.drop_last and len(tail) > 0:
             idx_arr += [tail.tolist()]
@@ -157,17 +161,16 @@ class Dataset(Dataset):
 
 
 class TextDataset(Dataset):
+
     def __init__(self, filepath, preprocess_config):
-        self.cleaners = preprocess_config["preprocessing"]["text"]["text_cleaners"]
+        self.cleaners = preprocess_config["preprocessing"]["text"][
+            "text_cleaners"]
 
         self.basename, self.speaker, self.text, self.raw_text = self.process_meta(
-            filepath
-        )
+            filepath)
         with open(
-            os.path.join(
-                preprocess_config["path"]["preprocessed_path"], "speakers.json"
-            )
-        ) as f:
+                os.path.join(preprocess_config["path"]["preprocessed_path"],
+                             "speakers.json")) as f:
             self.speaker_map = json.load(f)
 
     def __len__(self):
@@ -216,19 +219,22 @@ if __name__ == "__main__":
     from utils.utils import to_device
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    preprocess_config = yaml.load(
-        open("./config/LJSpeech/preprocess.yaml", "r"), Loader=yaml.FullLoader
-    )
-    train_config = yaml.load(
-        open("./config/LJSpeech/train.yaml", "r"), Loader=yaml.FullLoader
-    )
+    preprocess_config = yaml.load(open("./config/LJSpeech/preprocess.yaml",
+                                       "r"),
+                                  Loader=yaml.FullLoader)
+    train_config = yaml.load(open("./config/LJSpeech/train.yaml", "r"),
+                             Loader=yaml.FullLoader)
 
-    train_dataset = Dataset(
-        "train.txt", preprocess_config, train_config, sort=True, drop_last=True
-    )
-    val_dataset = Dataset(
-        "val.txt", preprocess_config, train_config, sort=False, drop_last=False
-    )
+    train_dataset = Dataset("train.txt",
+                            preprocess_config,
+                            train_config,
+                            sort=True,
+                            drop_last=True)
+    val_dataset = Dataset("val.txt",
+                          preprocess_config,
+                          train_config,
+                          sort=False,
+                          drop_last=False)
     train_loader = DataLoader(
         train_dataset,
         batch_size=train_config["optimizer"]["batch_size"] * 4,
@@ -247,19 +253,13 @@ if __name__ == "__main__":
         for batch in batchs:
             to_device(batch, device)
             n_batch += 1
-    print(
-        "Training set  with size {} is composed of {} batches.".format(
-            len(train_dataset), n_batch
-        )
-    )
+    print("Training set  with size {} is composed of {} batches.".format(
+        len(train_dataset), n_batch))
 
     n_batch = 0
     for batchs in val_loader:
         for batch in batchs:
             to_device(batch, device)
             n_batch += 1
-    print(
-        "Validation set  with size {} is composed of {} batches.".format(
-            len(val_dataset), n_batch
-        )
-    )
+    print("Validation set  with size {} is composed of {} batches.".format(
+        len(val_dataset), n_batch))
