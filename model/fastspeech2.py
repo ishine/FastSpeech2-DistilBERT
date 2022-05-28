@@ -95,9 +95,9 @@ class FastSpeech2(nn.Module):
 
         output, mel_masks = self.decoder(output, mel_masks)
         dbert_output = self.dbert_linear(dbert_targets)
-        # TODO(danj): this invalidates mel masks because
-        # output is mels|padding|dbert; perhaps we need to
-        # combine the dbert embeddings elsewhere?
+        # TODO(danj): inserting embeddings here doesn't work
+        # because of the loss functions; we need to embed these
+        # probably before the encoder
         combined_output = torch.cat((output, dbert_output), dim=1)
         output = self.mel_linear(combined_output)
 
