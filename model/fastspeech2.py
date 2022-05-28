@@ -52,6 +52,7 @@ class FastSpeech2(nn.Module):
         p_targets=None,
         e_targets=None,
         d_targets=None,
+        dbert_targets=None,
         p_control=1.0,
         e_control=1.0,
         d_control=1.0,
@@ -91,6 +92,7 @@ class FastSpeech2(nn.Module):
             d_control,
         )
 
+        # TODO(danj): update here to use DBERT
         output, mel_masks = self.decoder(output, mel_masks)
         output = self.mel_linear(output)
 
