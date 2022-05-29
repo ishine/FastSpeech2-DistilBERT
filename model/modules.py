@@ -25,22 +25,22 @@ class VarianceAdaptor(nn.Module):
         self.energy_predictor = VariancePredictor(model_config)
 
         self.pitch_feature_level = preprocess_config["preprocessing"]["pitch"][
-            "feature"
-        ]
-        self.energy_feature_level = preprocess_config["preprocessing"]["energy"][
-            "feature"
-        ]
+            "feature"]
+        self.energy_feature_level = preprocess_config["preprocessing"][
+            "energy"]["feature"]
         assert self.pitch_feature_level in ["phoneme_level", "frame_level"]
         assert self.energy_feature_level in ["phoneme_level", "frame_level"]
 
-        pitch_quantization = model_config["variance_embedding"]["pitch_quantization"]
-        energy_quantization = model_config["variance_embedding"]["energy_quantization"]
+        pitch_quantization = model_config["variance_embedding"][
+            "pitch_quantization"]
+        energy_quantization = model_config["variance_embedding"][
+            "energy_quantization"]
         n_bins = model_config["variance_embedding"]["n_bins"]
         assert pitch_quantization in ["linear", "log"]
         assert energy_quantization in ["linear", "log"]
         with open(
-            os.path.join(preprocess_config["path"]["preprocessed_path"], "stats.json")
-        ) as f:
+                os.path.join(preprocess_config["path"]["preprocessed_path"],
+                             "stats.json")) as f:
             stats = json.load(f)
             pitch_min, pitch_max = stats["pitch"][:2]
             energy_min, energy_max = stats["energy"][:2]
@@ -48,8 +48,8 @@ class VarianceAdaptor(nn.Module):
         if pitch_quantization == "log":
             self.pitch_bins = nn.Parameter(
                 torch.exp(
-                    torch.linspace(np.log(pitch_min), np.log(pitch_max), n_bins - 1)
-                ),
+                    torch.linspace(np.log(pitch_min), np.log(pitch_max),
+                                   n_bins - 1)),
                 requires_grad=False,
             )
         else:
@@ -60,8 +60,8 @@ class VarianceAdaptor(nn.Module):
         if energy_quantization == "log":
             self.energy_bins = nn.Parameter(
                 torch.exp(
-                    torch.linspace(np.log(energy_min), np.log(energy_max), n_bins - 1)
-                ),
+                    torch.linspace(np.log(energy_min), np.log(energy_max),
+                                   n_bins - 1)),
                 requires_grad=False,
             )
         else:
@@ -71,32 +71,30 @@ class VarianceAdaptor(nn.Module):
             )
 
         self.pitch_embedding = nn.Embedding(
-            n_bins, model_config["transformer"]["encoder_hidden"]
-        )
+            n_bins, model_config["transformer"]["encoder_hidden"])
         self.energy_embedding = nn.Embedding(
-            n_bins, model_config["transformer"]["encoder_hidden"]
-        )
+            n_bins, model_config["transformer"]["encoder_hidden"])
 
     def get_pitch_embedding(self, x, target, mask, control):
         prediction = self.pitch_predictor(x, mask)
         if target is not None:
-            embedding = self.pitch_embedding(torch.bucketize(target, self.pitch_bins))
+            embedding = self.pitch_embedding(
+                torch.bucketize(target, self.pitch_bins))
         else:
             prediction = prediction * control
             embedding = self.pitch_embedding(
-                torch.bucketize(prediction, self.pitch_bins)
-            )
+                torch.bucketize(prediction, self.pitch_bins))
         return prediction, embedding
 
     def get_energy_embedding(self, x, target, mask, control):
         prediction = self.energy_predictor(x, mask)
         if target is not None:
-            embedding = self.energy_embedding(torch.bucketize(target, self.energy_bins))
+            embedding = self.energy_embedding(
+                torch.bucketize(target, self.energy_bins))
         else:
             prediction = prediction * control
             embedding = self.energy_embedding(
-                torch.bucketize(prediction, self.energy_bins)
-            )
+                torch.bucketize(prediction, self.energy_bins))
         return prediction, embedding
 
     def forward(
@@ -116,13 +114,11 @@ class VarianceAdaptor(nn.Module):
         log_duration_prediction = self.duration_predictor(x, src_mask)
         if self.pitch_feature_level == "phoneme_level":
             pitch_prediction, pitch_embedding = self.get_pitch_embedding(
-                x, pitch_target, src_mask, p_control
-            )
+                x, pitch_target, src_mask, p_control)
             x = x + pitch_embedding
         if self.energy_feature_level == "phoneme_level":
             energy_prediction, energy_embedding = self.get_energy_embedding(
-                x, energy_target, src_mask, p_control
-            )
+                x, energy_target, src_mask, e_control)
             x = x + energy_embedding
 
         if duration_target is not None:
@@ -130,7 +126,8 @@ class VarianceAdaptor(nn.Module):
             duration_rounded = duration_target
         else:
             duration_rounded = torch.clamp(
-                (torch.round(torch.exp(log_duration_prediction) - 1) * d_control),
+                (torch.round(torch.exp(log_duration_prediction) - 1) *
+                 d_control),
                 min=0,
             )
             x, mel_len = self.length_regulator(x, duration_rounded, max_len)
@@ -138,13 +135,11 @@ class VarianceAdaptor(nn.Module):
 
         if self.pitch_feature_level == "frame_level":
             pitch_prediction, pitch_embedding = self.get_pitch_embedding(
-                x, pitch_target, mel_mask, p_control
-            )
+                x, pitch_target, mel_mask, p_control)
             x = x + pitch_embedding
         if self.energy_feature_level == "frame_level":
             energy_prediction, energy_embedding = self.get_energy_embedding(
-                x, energy_target, mel_mask, p_control
-            )
+                x, energy_target, mel_mask, p_control)
             x = x + energy_embedding
 
         return (
@@ -203,39 +198,37 @@ class VariancePredictor(nn.Module):
         self.input_size = model_config["transformer"]["encoder_hidden"]
         self.filter_size = model_config["variance_predictor"]["filter_size"]
         self.kernel = model_config["variance_predictor"]["kernel_size"]
-        self.conv_output_size = model_config["variance_predictor"]["filter_size"]
+        self.conv_output_size = model_config["variance_predictor"][
+            "filter_size"]
         self.dropout = model_config["variance_predictor"]["dropout"]
 
         self.conv_layer = nn.Sequential(
-            OrderedDict(
-                [
-                    (
-                        "conv1d_1",
-                        Conv(
-                            self.input_size,
-                            self.filter_size,
-                            kernel_size=self.kernel,
-                            padding=(self.kernel - 1) // 2,
-                        ),
+            OrderedDict([
+                (
+                    "conv1d_1",
+                    Conv(
+                        self.input_size,
+                        self.filter_size,
+                        kernel_size=self.kernel,
+                        padding=(self.kernel - 1) // 2,
                     ),
-                    ("relu_1", nn.ReLU()),
-                    ("layer_norm_1", nn.LayerNorm(self.filter_size)),
-                    ("dropout_1", nn.Dropout(self.dropout)),
-                    (
-                        "conv1d_2",
-                        Conv(
-                            self.filter_size,
-                            self.filter_size,
-                            kernel_size=self.kernel,
-                            padding=1,
-                        ),
+                ),
+                ("relu_1", nn.ReLU()),
+                ("layer_norm_1", nn.LayerNorm(self.filter_size)),
+                ("dropout_1", nn.Dropout(self.dropout)),
+                (
+                    "conv1d_2",
+                    Conv(
+                        self.filter_size,
+                        self.filter_size,
+                        kernel_size=self.kernel,
+                        padding=1,
                     ),
-                    ("relu_2", nn.ReLU()),
-                    ("layer_norm_2", nn.LayerNorm(self.filter_size)),
-                    ("dropout_2", nn.Dropout(self.dropout)),
-                ]
-            )
-        )
+                ),
+                ("relu_2", nn.ReLU()),
+                ("layer_norm_2", nn.LayerNorm(self.filter_size)),
+                ("dropout_2", nn.Dropout(self.dropout)),
+            ]))
 
         self.linear_layer = nn.Linear(self.conv_output_size, 1)
 

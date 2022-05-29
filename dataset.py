@@ -120,7 +120,9 @@ class Dataset(Dataset):
         pitches = pad_1D(pitches)
         energies = pad_1D(energies)
         durations = pad_1D(durations)
-        dberts = pad_2D(dberts)
+        # TODO(danj): hack to ensure seq length matches
+        # model.dbert_linear_seq input size
+        dberts = pad_2D(dberts, maxlen=1000)
 
         return (
             ids,
