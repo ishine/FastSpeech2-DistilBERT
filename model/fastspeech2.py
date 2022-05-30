@@ -18,15 +18,31 @@ class FastSpeech2(nn.Module):
         self.model_config = model_config
         # maps DistilBERT hidden sizes to
         # encoder hidden sizes
-        self.dbert_linear_hidden = nn.Linear(
-            model_config["transformer"]["dbert_hidden"],
-            model_config["transformer"]["decoder_hidden"],
+        self.dbert_ffn_hidden = nn.Sequential(
+            nn.Linear(
+                model_config["transformer"]["dbert_hidden"],
+                model_config["transformer"]["decoder_hidden"],
+            ),
+            nn.ReLU(),
+            nn.Linear(
+                model_config["transformer"]["decoder_hidden"],
+                model_config["transformer"]["decoder_hidden"],
+            ),
+            nn.ReLU(),
         )
         # TODO(danj): this maps DistilBERT sequences
         # to encoder sequences
-        self.dbert_linear_seq = nn.Linear(
-            model_config["max_seq_len"],
-            model_config["max_seq_len"],
+        self.dbert_ffn_seq = nn.Sequential(
+            nn.Linear(
+                model_config["max_seq_len"],
+                model_config["max_seq_len"],
+            ),
+            nn.ReLU(),
+            nn.Linear(
+                model_config["max_seq_len"],
+                model_config["max_seq_len"],
+            ),
+            nn.ReLU(),
         )
         self.encoder = Encoder(model_config)
         self.variance_adaptor = VarianceAdaptor(preprocess_config,
@@ -102,9 +118,9 @@ class FastSpeech2(nn.Module):
 
         # TODO(danj): improve this
         # dbert hidden size => encoder hidden size
-        dbert = self.dbert_linear_hidden(dbert_targets)
+        dbert = self.dbert_ffn_hidden(dbert_targets)
         # dbert sequence => phoneme embedded sequence
-        dbert = self.dbert_linear_seq(dbert.permute(0, 2, 1))
+        dbert = self.dbert_ffn_seq(dbert.permute(0, 2, 1))
         # adding dbert embedding to output, truncating extra
         # this shouldn't be a problem because almost all weights
         # associate left to right, since dbert sequences are
