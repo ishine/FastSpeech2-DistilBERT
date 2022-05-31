@@ -2,12 +2,15 @@ import os
 import json
 
 import torch
+import transformers as hft
 import torch.nn as nn
 import torch.nn.functional as F
 
 from transformer import Encoder, Decoder, PostNet
 from .modules import VarianceAdaptor
 from utils.tools import get_mask_from_lengths, pad_2D
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class FastSpeech2(nn.Module):
@@ -18,15 +21,15 @@ class FastSpeech2(nn.Module):
         self.model_config = model_config
         # maps DistilBERT hidden sizes to
         # encoder hidden sizes
-        self.dbert_linear_hidden = nn.Linear(
-            model_config["transformer"]["dbert_hidden"],
-            model_config["transformer"]["decoder_hidden"],
+        self.dbert_linear_hidden = nn.Linear(
+            model_config["transformer"]["dbert_hidden"],
+            model_config["transformer"]["decoder_hidden"],
         )
         # TODO(danj): this maps DistilBERT sequences
         # to encoder sequences
-        self.dbert_linear_seq = nn.Linear(
-            model_config["max_seq_len"],
-            model_config["max_seq_len"],
+        self.dbert_linear_seq = nn.Linear(
+            model_config["max_seq_len"],
+            model_config["max_seq_len"],
         )
         self.encoder = Encoder(model_config)
         self.variance_adaptor = VarianceAdaptor(preprocess_config,
@@ -54,6 +57,7 @@ class FastSpeech2(nn.Module):
 
     def forward(
         self,
+        raw_texts,
         speakers,
         texts,
         src_lens,
@@ -100,16 +104,33 @@ class FastSpeech2(nn.Module):
             d_control,
         )
 
+        if dbert_targets is None:
+            self.hf_ckpt = 'distilbert-base-uncased'
+            self.dbert_tokenizer = hft.AutoTokenizer.from_pretrained(
+                self.hf_ckpt)
+            self.dbert = hft.AutoModel.from_pretrained(self.hf_ckpt)
+            dbert_tokens = self.dbert_tokenizer(
+                raw_texts,
+                padding=True,
+                truncation=True,
+                return_tensors="pt",
+            )
+            dbert_targets = self.dbert(**dbert_tokens)['last_hidden_state']
+            dbert_targets = pad_2D(
+                dbert_targets.detach().numpy(),
+                maxlen=self.model_config["max_seq_len"],
+            )
+            dbert_targets = torch.from_numpy(dbert_targets).to(device)
         # TODO(danj): improve this
         # dbert hidden size => encoder hidden size
-        dbert = self.dbert_linear_hidden(dbert_targets)
+        dbert_emb = self.dbert_linear_hidden(dbert_targets)
         # dbert sequence => phoneme embedded sequence
-        dbert = self.dbert_linear_seq(dbert.permute(0, 2, 1))
+        dbert_emb = self.dbert_linear_seq(dbert_emb.permute(0, 2, 1))
         # adding dbert embedding to output, truncating extra
         # this shouldn't be a problem because almost all weights
         # associate left to right, since dbert sequences are
         # almost always shorter than phoneme sequences
-        output += dbert.permute(0, 2, 1)[:, :output.shape[1], :]
+        output += dbert_emb.permute(0, 2, 1)[:, :output.shape[1], :]
         output, mel_masks = self.decoder(output, mel_masks)
         output = self.mel_linear(output)
 
