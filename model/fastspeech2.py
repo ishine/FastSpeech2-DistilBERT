@@ -19,21 +19,9 @@ class FastSpeech2(nn.Module):
     def __init__(self, preprocess_config, model_config):
         super(FastSpeech2, self).__init__()
         self.model_config = model_config
-        # maps DistilBERT hidden sizes to
-        # encoder hidden sizes
-        self.dbert_linear_hidden = nn.Linear(
-            model_config["transformer"]["dbert_hidden"],
-            model_config["transformer"]["decoder_hidden"],
-        )
-        # TODO(danj): this maps DistilBERT sequences
-        # to encoder sequences
-        self.dbert_linear_seq = nn.Linear(
-            model_config["max_seq_len"],
-            model_config["max_seq_len"],
-        )
-        self.encoder = Encoder(model_config)
-        self.variance_adaptor = VarianceAdaptor(preprocess_config,
-                                                model_config)
+        # self.encoder = Encoder(model_config)
+        # self.variance_adaptor = VarianceAdaptor(preprocess_config,
+        #                                         model_config)
         self.decoder = Decoder(model_config)
         self.mel_linear = nn.Linear(
             model_config["transformer"]["decoder_hidden"],
@@ -77,32 +65,32 @@ class FastSpeech2(nn.Module):
         mel_masks = (get_mask_from_lengths(mel_lens, max_mel_len)
                      if mel_lens is not None else None)
 
-        output = self.encoder(texts, src_masks)
+        # output = self.encoder(texts, src_masks)
 
-        if self.speaker_emb is not None:
-            output = output + self.speaker_emb(speakers).unsqueeze(1).expand(
-                -1, max_src_len, -1)
-
-        (
-            output,
-            p_predictions,
-            e_predictions,
-            log_d_predictions,
-            d_rounded,
-            mel_lens,
-            mel_masks,
-        ) = self.variance_adaptor(
-            output,
-            src_masks,
-            mel_masks,
-            max_mel_len,
-            p_targets,
-            e_targets,
-            d_targets,
-            p_control,
-            e_control,
-            d_control,
-        )
+        # if self.speaker_emb is not None:
+        #     output = output + self.speaker_emb(speakers).unsqueeze(1).expand(
+        #         -1, max_src_len, -1)
+        #
+        # (
+        #     output,
+        #     p_predictions,
+        #     e_predictions,
+        #     log_d_predictions,
+        #     d_rounded,
+        #     mel_lens,
+        #     mel_masks,
+        # ) = self.variance_adaptor(
+        #     output,
+        #     src_masks,
+        #     mel_masks,
+        #     max_mel_len,
+        #     p_targets,
+        #     e_targets,
+        #     d_targets,
+        #     p_control,
+        #     e_control,
+        #     d_control,
+        # )
 
         if dbert_targets is None:
             self.hf_ckpt = 'distilbert-base-uncased'
@@ -121,20 +109,15 @@ class FastSpeech2(nn.Module):
                 maxlen=self.model_config["max_seq_len"],
             )
             dbert_targets = torch.from_numpy(dbert_targets).to(device)
-        # TODO(danj): improve this
-        # dbert hidden size => encoder hidden size
-        dbert_emb = self.dbert_linear_hidden(dbert_targets)
-        # dbert sequence => phoneme embedded sequence
-        dbert_emb = self.dbert_linear_seq(dbert_emb.permute(0, 2, 1))
-        # adding dbert embedding to output, truncating extra
-        # this shouldn't be a problem because almost all weights
-        # associate left to right, since dbert sequences are
-        # almost always shorter than phoneme sequences
-        output += dbert_emb.permute(0, 2, 1)[:, :output.shape[1], :]
-        output, mel_masks = self.decoder(output, mel_masks)
+        output, mel_masks = self.decoder(dbert_targets, mel_masks)
         output = self.mel_linear(output)
 
         postnet_output = self.postnet(output) + output
+
+        p_predictions = None
+        e_predictions = None
+        log_d_predictions = None
+        d_rounded = None
 
         return (
             output,
