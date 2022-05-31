@@ -21,9 +21,8 @@ def get_model(args, configs, device, train=False):
         model.load_state_dict(ckpt["model"])
 
     if train:
-        scheduled_optim = ScheduledOptim(
-            model, train_config, model_config, args.restore_step
-        )
+        scheduled_optim = ScheduledOptim(model, train_config, model_config,
+                                         args.restore_step)
         if args.restore_step:
             scheduled_optim.load_state_dict(ckpt["optimizer"])
         model.train()
@@ -45,13 +44,11 @@ def get_vocoder(config, device):
 
     if name == "MelGAN":
         if speaker == "LJSpeech":
-            vocoder = torch.hub.load(
-                "descriptinc/melgan-neurips", "load_melgan", "linda_johnson"
-            )
+            vocoder = torch.hub.load("descriptinc/melgan-neurips",
+                                     "load_melgan", "linda_johnson")
         elif speaker == "universal":
-            vocoder = torch.hub.load(
-                "descriptinc/melgan-neurips", "load_melgan", "multi_speaker"
-            )
+            vocoder = torch.hub.load("descriptinc/melgan-neurips",
+                                     "load_melgan", "multi_speaker")
         vocoder.mel2wav.eval()
         vocoder.mel2wav.to(device)
     elif name == "HiFi-GAN":
@@ -71,7 +68,11 @@ def get_vocoder(config, device):
     return vocoder
 
 
-def vocoder_infer(mels, vocoder, model_config, preprocess_config, lengths=None):
+def vocoder_infer(mels,
+                  vocoder,
+                  model_config,
+                  preprocess_config,
+                  lengths=None):
     name = model_config["vocoder"]["model"]
     with torch.no_grad():
         if name == "MelGAN":
@@ -79,14 +80,13 @@ def vocoder_infer(mels, vocoder, model_config, preprocess_config, lengths=None):
         elif name == "HiFi-GAN":
             wavs = vocoder(mels).squeeze(1)
 
-    wavs = (
-        wavs.cpu().numpy()
-        * preprocess_config["preprocessing"]["audio"]["max_wav_value"]
-    ).astype("int16")
+    wavs = (wavs.cpu().numpy() *
+            preprocess_config["preprocessing"]["audio"]["max_wav_value"]
+            ).astype("int16")
     wavs = [wav for wav in wavs]
 
     for i in range(len(mels)):
         if lengths is not None:
-            wavs[i] = wavs[i][: lengths[i]]
+            wavs[i] = wavs[i][:lengths[i]]
 
     return wavs

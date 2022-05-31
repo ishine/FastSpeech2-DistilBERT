@@ -83,7 +83,7 @@ def main(args, configs):
                 batch = to_device(batch, device)
 
                 # Forward
-                output = model(*(batch[2:]))
+                output = model(*(batch[1:]))
 
                 # Cal Loss
                 losses = Loss(batch, output)
