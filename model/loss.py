@@ -83,9 +83,9 @@ class FastSpeech2Loss(nn.Module):
         # total_loss = (mel_loss + postnet_mel_loss + duration_loss +
         #               pitch_loss + energy_loss)
 
-        pitch_loss = 0
-        energy_loss = 0
-        duration_loss = 0
+        pitch_loss = torch.tensor(0)
+        energy_loss = torch.tensor(0)
+        duration_loss = torch.tensor(0)
         return (
             total_loss,
             mel_loss,
