@@ -109,7 +109,10 @@ class FastSpeech2(nn.Module):
                 maxlen=self.model_config["max_seq_len"],
             )
             dbert_targets = torch.from_numpy(dbert_targets).to(device)
-        output, mel_masks = self.decoder(dbert_targets, mel_masks)
+        output, mel_masks = self.decoder(
+            dbert_targets[:, :mel_masks.shape[1], :],
+            mel_masks,
+        )
         output = self.mel_linear(output)
 
         postnet_output = self.postnet(output) + output
