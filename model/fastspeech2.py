@@ -19,9 +19,6 @@ class FastSpeech2(nn.Module):
     def __init__(self, preprocess_config, model_config):
         super(FastSpeech2, self).__init__()
         self.model_config = model_config
-        self.hf_ckpt = 'distilbert-base-uncased'
-        self.dbert_tokenizer = hft.AutoTokenizer.from_pretrained(self.hf_ckpt)
-        self.dbert = hft.AutoModel.from_pretrained(self.hf_ckpt)
         # maps DistilBERT hidden sizes to
         # encoder hidden sizes
         self.dbert_ffn_hidden = nn.Sequential(
@@ -124,6 +121,10 @@ class FastSpeech2(nn.Module):
         )
 
         if dbert_targets is None:
+            self.hf_ckpt = 'distilbert-base-uncased'
+            self.dbert_tokenizer = hft.AutoTokenizer.from_pretrained(
+                self.hf_ckpt)
+            self.dbert = hft.AutoModel.from_pretrained(self.hf_ckpt)
             dbert_tokens = self.dbert_tokenizer(
                 raw_texts,
                 padding=True,
